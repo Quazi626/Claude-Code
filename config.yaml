@@ -1,0 +1,118 @@
+# FLUX trading bot configuration
+# All values here are defaults and can be overridden per-environment.
+# Secrets (API keys) NEVER go in this file — see .env.example.
+
+mode:
+  # "paper" or "live". Live trading additionally requires LIVE_TRADING_CONFIRM=YES
+  # in the environment AND a typed confirmation at startup.
+  environment: paper
+
+watchlist:
+  - SPY
+  - QQQ
+  - IWM
+  - AAPL
+  - MSFT
+  - NVDA
+  - TSLA
+  - GOOGL
+  - AMZN
+  - META
+  - AMD
+  - AVGO
+  - MU
+  - XOM
+  - CVX
+  - LMT
+  - RTX
+  - JPM
+  - GS
+  - PLTR
+  - CRWD
+  - MSTR
+  - COIN
+  - GLD
+  - TLT
+
+schedule:
+  timezone: America/New_York
+  no_entries_before: "09:45"
+  force_close_0dte_by: "15:15"
+  market_close: "16:00"
+
+signals:
+  bar_timeframes: ["5Min", "15Min"]
+  ema_fast: 9
+  ema_slow: 21
+  volume_avg_lookback: 20
+  volume_multiplier: 1.0        # volume must exceed lookback avg * this multiplier
+  pivot_reclaim_buffer_pct: 0.05 # % buffer around pivot level to count as a "reclaim"
+
+vix:
+  data_source: yfinance
+  symbol: "^VIX"
+  full_size_max: 25.0     # VIX < 25 -> full size
+  half_size_max: 30.0     # 25 <= VIX < 30 -> half size, min DTE below
+  half_size_min_dte: 1
+  half_size_max_dte: 3
+  no_0dte_above: 30.0      # VIX >= 30 -> no 0DTE trades at all
+  refresh_seconds: 60
+
+btc_gate:
+  data_source: alpaca_crypto
+  symbol: "BTC/USD"
+  min_price_usd: 71000
+  gated_symbols: ["MSTR", "COIN"]
+  refresh_seconds: 60
+
+dte:
+  # Default expiration target. VIX-based overrides (see `vix:` section) take
+  # precedence over this when VIX >= 25.
+  default: 0            # 0 = same-day (0DTE) expiration when available
+  fallback_max_dte: 2    # used if 0DTE is not listed for a symbol
+
+contracts:
+  moneyness: "nearest_atm_or_1_otm"  # nearest ATM or 1 strike OTM
+  min_open_interest: 100
+  max_bid_ask_spread_pct: 10.0        # % of mid price
+  max_bid_ask_spread_abs: 0.15        # absolute $ cap, whichever is tighter
+
+sizing:
+  risk_pct_per_trade: 1.0     # % of account equity risked per trade (full size)
+  half_size_multiplier: 0.5
+  max_contracts_per_trade: 10
+
+session_limits:
+  max_trades_per_session: 5
+  daily_profit_target_usd: 500.0
+  daily_max_loss_usd: 500.0
+
+exits:
+  stop_loss_pct: 40.0       # % of premium paid
+  profit_target_pct: 60.0   # % of premium paid
+  time_stop_minutes: 120    # force-exit a trade after N minutes if neither hit
+
+orders:
+  order_type: limit
+  mid_offset_pct: 1.0        # limit price offset from mid, in % of mid, in bot's favor
+  cancel_unfilled_after_seconds: 20
+  max_repricing_attempts: 3
+  loop_seconds: 15            # main loop cadence (bar polling / signal re-evaluation)
+
+kill_switch:
+  flag_file: "KILL_SWITCH"
+  poll_seconds: 2
+
+backtest:
+  fees_per_contract_usd: 0.65
+  slippage_pct: 2.0            # % of mid, applied against the bot on entry and exit
+  iv_assumption: 0.35           # flat IV used for Black-Scholes simulation when no chain IV is available
+  risk_free_rate: 0.05
+
+logging:
+  log_dir: "logs"
+  signals_csv: "signals.csv"
+  orders_csv: "orders.csv"
+  fills_csv: "fills.csv"
+  pnl_csv: "pnl.csv"
+  level: INFO

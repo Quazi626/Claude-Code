@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+logs/*.csv
+*.egg-info/
+.venv/
+venv/
+KILL_SWITCH
+.DS_Store
