@@ -157,6 +157,16 @@ python -m flux.backtest.run --start 2025-06-01 --end 2025-08-01 --symbols SPY,QQ
 Reports win rate, average win/loss, total P&L, max drawdown, and profit
 factor, per symbol and for the combined portfolio of trades.
 
+If you just want to sanity-check that the backtest engine itself runs
+correctly (signal generation → VIX sizing → contract pricing → exits →
+metrics) without needing Alpaca credentials or network access, run:
+```bash
+python scripts/synthetic_backtest_demo.py
+```
+This replays fabricated price data through the real engine — it's a code
+smoke test, not a performance estimate; use `flux.backtest.run` with real
+history for anything you'd actually draw conclusions from.
+
 ## Data sources
 
 | Data | Source | Why |

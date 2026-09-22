@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
+from datetime import time as dtime
+from datetime import timedelta
 from typing import Optional
 
 import pandas as pd
@@ -73,6 +75,23 @@ def _strike_from_spot(spot: float, increment: float = 1.0) -> float:
     return round(round(spot / increment) * increment, 2)
 
 
+def _t_years_remaining(now: datetime, expiration: date, market_close: dtime) -> float:
+    """Year-fraction of time value remaining until `market_close` on
+    `expiration`. For a 0DTE contract this is a few hours, not zero —
+    using whole calendar days (i.e. 0 for same-day expiry) would collapse
+    Black-Scholes to pure intrinsic value and make same-day entries price
+    at ~$0 for an ATM strike, which is wrong on both counts.
+
+    `now` is assumed to already be wall-clock ET (as bars are throughout
+    this codebase); tzinfo is stripped before the subtraction so a
+    tz-aware `now` and a naive `market_close` combine correctly.
+    """
+    now_naive = now.replace(tzinfo=None) if now.tzinfo else now
+    close_dt = datetime.combine(expiration, market_close)
+    remaining_seconds = (close_dt - now_naive).total_seconds()
+    return max(remaining_seconds, 0.0) / (365.0 * 24 * 3600)
+
+
 def run_backtest(
     symbol: str,
     bars: pd.DataFrame,
@@ -93,6 +112,7 @@ def run_backtest(
     schedule = cfg.get("schedule", default={})
     no_entries_before = parse_hhmm(schedule.get("no_entries_before", "09:45"))
     force_close_by = parse_hhmm(schedule.get("force_close_0dte_by", "15:15"))
+    market_close_time = parse_hhmm(schedule.get("market_close", "16:00"))
 
     sig_cfg = cfg.get("signals", default={})
     vix_cfg = cfg.get("vix", default={})
@@ -155,7 +175,7 @@ def run_backtest(
             spot = float(window["close"].iloc[-1])
 
             if open_pos is not None:
-                t_years = max((datetime.combine(open_pos.expiration, datetime.min.time()) - now).days, 0) / 365.0
+                t_years = _t_years_remaining(now, open_pos.expiration, market_close_time)
                 current_price = bs_price(spot, open_pos.strike, t_years, rate, iv_assumption, open_pos.direction)
 
                 force_close = open_pos.expiration == day and is_force_close_time(now, force_close_by)
@@ -217,7 +237,7 @@ def run_backtest(
                         dte = max(dte, vix_sizing.min_dte)
                     expiration = day + timedelta(days=dte)
                     strike = _strike_from_spot(spot)
-                    t_years = max((expiration - day).days, 0) / 365.0
+                    t_years = _t_years_remaining(now, expiration, market_close_time)
                     theo_price = bs_price(spot, strike, t_years, rate, iv_assumption, signal.direction)
                     entry_price = theo_price * (1 + slippage_pct / 100.0)
 
@@ -245,7 +265,7 @@ def run_backtest(
         if open_pos is not None:
             spot = float(day_bars["close"].iloc[-1])
             now = day_bars.index[-1].to_pydatetime()
-            t_years = max((open_pos.expiration - day).days, 0) / 365.0
+            t_years = _t_years_remaining(now, open_pos.expiration, market_close_time)
             current_price = bs_price(spot, open_pos.strike, t_years, rate, iv_assumption, open_pos.direction)
             fill_price = max(current_price * (1 - slippage_pct / 100.0), 0.0)
             exit_fees = fees_per_contract * open_pos.contracts
