@@ -97,7 +97,16 @@ config.yaml                  # strategy/risk parameters (no secrets)
    pytest tests/ -v
    ```
 
-6. **Run in paper mode**:
+6. **Run the connectivity smoke test** — checks auth, account access, market
+   clock, equity/options/crypto data, and VIX, without placing any orders:
+   ```bash
+   python scripts/smoke_test.py
+   ```
+   Fix anything it reports before moving on; it's the fastest way to catch a
+   bad key, a paper account without options approval, or a data
+   entitlement gap before the bot ever tries to trade.
+
+7. **Run in paper mode**:
    ```bash
    python -m flux.main
    ```
